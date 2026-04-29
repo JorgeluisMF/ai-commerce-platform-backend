@@ -4,11 +4,35 @@ from pathlib import Path
 from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Monorepo: repo `.env` then `backend/.env` (later overrides).
-# Path: backend/src/app/core/config.py → parents[3]=backend, parents[4]=repo root.
+# Load env from repo root and backend root when present.
+# This must work both in monorepo local paths and in deployed containers.
 _CONFIG_DIR = Path(__file__).resolve().parent
-_BACKEND_ROOT = _CONFIG_DIR.parents[3]
-_REPO_ROOT = _CONFIG_DIR.parents[4]
+
+
+def _find_backend_root(start_dir: Path) -> Path:
+    current = start_dir
+    while True:
+        # backend root marker in this project
+        if (current / "src" / "app" / "main.py").exists():
+            return current
+        if current.parent == current:
+            return start_dir
+        current = current.parent
+
+
+def _find_repo_root(backend_root: Path) -> Path:
+    current = backend_root
+    while True:
+        # monorepo marker
+        if (current / "backend").exists() and (current / "frontend").exists():
+            return current
+        if current.parent == current:
+            return backend_root
+        current = current.parent
+
+
+_BACKEND_ROOT = _find_backend_root(_CONFIG_DIR)
+_REPO_ROOT = _find_repo_root(_BACKEND_ROOT)
 
 
 class Settings(BaseSettings):
