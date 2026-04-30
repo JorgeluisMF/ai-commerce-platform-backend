@@ -183,6 +183,14 @@ class Settings(BaseSettings):
         alias="CORS_INSECURE_ALLOW_ANY_ORIGIN",
         description="If true, allows Access-Control-Allow-Origin: * (never use in production).",
     )
+    cors_allow_vercel_app: bool = Field(
+        default=False,
+        alias="CORS_ALLOW_VERCEL_APP",
+        description=(
+            "If true, also allows any https://*.vercel.app origin (Vercel previews and "
+            "production on vercel.app) via CORS allow_origin_regex."
+        ),
+    )
     security_x_frame_options: str = Field(default="DENY", alias="SECURITY_X_FRAME_OPTIONS")
     security_referrer_policy: str = Field(
         default="strict-origin-when-cross-origin",
@@ -202,7 +210,7 @@ class Settings(BaseSettings):
                 )
                 raise ValueError(msg)
             return self
-        if not raw:
+        if not raw and not self.cors_allow_vercel_app:
             msg = "CORS_ORIGINS must be set to explicit origins when APP_ENV=production"
             raise ValueError(msg)
         return self
@@ -215,6 +223,12 @@ class Settings(BaseSettings):
         if raw == "*":
             return ["*"]
         return [o.strip() for o in raw.split(",") if o.strip()]
+
+    @property
+    def cors_allow_origin_regex(self) -> str | None:
+        if not self.cors_allow_vercel_app:
+            return None
+        return r"https://.+\.vercel\.app$"
 
     @property
     def sqlalchemy_database_uri(self) -> str:

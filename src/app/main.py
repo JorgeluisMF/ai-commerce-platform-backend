@@ -31,12 +31,14 @@ app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
 app.add_middleware(SecurityHeadersMiddleware)
 
 _cors_origins = settings.cors_origins_list
+_cors_regex = None if settings.cors_insecure_allow_any_origin else settings.cors_allow_origin_regex
 _use_wildcard = (
     settings.cors_insecure_allow_any_origin or (len(_cors_origins) == 1 and _cors_origins[0] == "*")
 )
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"] if _use_wildcard else (_cors_origins or ["http://localhost:5173"]),
+    allow_origin_regex=None if _use_wildcard else _cors_regex,
     allow_credentials=False if _use_wildcard else settings.cors_allow_credentials,
     allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-Request-ID", "Accept"],
