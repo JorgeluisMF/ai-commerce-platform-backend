@@ -133,7 +133,10 @@ def update_product(
     for field_name, value in updates.items():
         setattr(product, field_name, value)
     if images is not None:
+        # Ensure old rows are deleted before inserting a new primary image.
+        # The DB has a partial unique index allowing only one primary image per product.
         product.images.clear()
+        db.flush()
         for idx, url in enumerate(images):
             product.images.append(
                 ProductImage(
