@@ -129,8 +129,20 @@ def update_product(
         raise ProductConcurrencyError("Product was modified by another process. Reload and retry.")
 
     updates = payload.model_dump(exclude_unset=True)
+    images = updates.pop("images", None)
     for field_name, value in updates.items():
         setattr(product, field_name, value)
+    if images is not None:
+        product.images.clear()
+        for idx, url in enumerate(images):
+            product.images.append(
+                ProductImage(
+                    product_id=product.id,
+                    storage_key=url,
+                    sort_order=idx,
+                    is_primary=(idx == 0),
+                )
+            )
 
     try:
         db.add(product)

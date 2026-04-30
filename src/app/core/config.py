@@ -191,6 +191,22 @@ class Settings(BaseSettings):
             "production on vercel.app) via CORS allow_origin_regex."
         ),
     )
+    cors_extra_origin_regex: str = Field(
+        default="",
+        alias="CORS_EXTRA_ORIGIN_REGEX",
+        description=(
+            "Optional extra regex (full match against Origin) OR-combined with the Vercel pattern. "
+            "Use for a custom domain, e.g. ^https://shop\\.example\\.com$"
+        ),
+    )
+    cors_reflect_all_request_headers: bool = Field(
+        default=False,
+        alias="CORS_REFLECT_ALL_REQUEST_HEADERS",
+        description=(
+            "If true, CORS preflight mirrors any Access-Control-Request-Headers (Starlette allow_headers=['*']). "
+            "Use if preflight still fails with Disallowed CORS headers."
+        ),
+    )
     security_x_frame_options: str = Field(default="DENY", alias="SECURITY_X_FRAME_OPTIONS")
     security_referrer_policy: str = Field(
         default="strict-origin-when-cross-origin",
@@ -222,13 +238,29 @@ class Settings(BaseSettings):
             return []
         if raw == "*":
             return ["*"]
-        return [o.strip() for o in raw.split(",") if o.strip()]
+        out: list[str] = []
+        for o in raw.split(","):
+            s = o.strip()
+            if not s:
+                continue
+            while len(s) > 1 and s.endswith("/"):
+                s = s[:-1]
+            out.append(s)
+        return out
 
     @property
     def cors_allow_origin_regex(self) -> str | None:
-        if not self.cors_allow_vercel_app:
+        patterns: list[str] = []
+        if self.cors_allow_vercel_app:
+            patterns.append(r"https://.+\.vercel\.app$")
+        extra = self.cors_extra_origin_regex.strip()
+        if extra:
+            patterns.append(extra)
+        if not patterns:
             return None
-        return r"https://.+\.vercel\.app$"
+        if len(patterns) == 1:
+            return patterns[0]
+        return "(?:" + ")|(?:".join(patterns) + ")"
 
     @property
     def sqlalchemy_database_uri(self) -> str:

@@ -35,13 +35,28 @@ _cors_regex = None if settings.cors_insecure_allow_any_origin else settings.cors
 _use_wildcard = (
     settings.cors_insecure_allow_any_origin or (len(_cors_origins) == 1 and _cors_origins[0] == "*")
 )
+_cors_allow_headers = (
+    ["*"]
+    if settings.cors_reflect_all_request_headers
+    else ["Authorization", "Content-Type", "Idempotency-Key", "X-Request-ID", "Accept"]
+)
+
+logger.info(
+    "cors_startup",
+    extra={
+        "explicit_origins_count": len(_cors_origins),
+        "origin_regex_configured": bool(_cors_regex),
+        "reflect_all_request_headers": settings.cors_reflect_all_request_headers,
+    },
+)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"] if _use_wildcard else (_cors_origins or ["http://localhost:5173"]),
     allow_origin_regex=None if _use_wildcard else _cors_regex,
     allow_credentials=False if _use_wildcard else settings.cors_allow_credentials,
     allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-Request-ID", "Accept"],
+    allow_headers=_cors_allow_headers,
     expose_headers=["*"],
 )
 

@@ -81,6 +81,11 @@ class ProductUpdate(BaseModel):
     price: Decimal | None = Field(default=None, gt=0, max_digits=10, decimal_places=2)
     stock: int | None = Field(default=None, ge=0, le=1_000_000)
     is_active: bool | None = None
+    images: list[str] | None = Field(
+        default=None,
+        description="Optional replacement of all image URLs (order preserved; first is primary).",
+        max_length=40,
+    )
 
     @model_validator(mode="after")
     def at_least_one_field(self) -> "ProductUpdate":
@@ -104,6 +109,23 @@ class ProductUpdate(BaseModel):
         if value is None:
             return value
         return value.strip().upper()
+
+    @field_validator("images")
+    @classmethod
+    def validate_image_urls(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        cleaned: list[str] = []
+        for raw in value:
+            u = raw.strip()
+            if not u:
+                continue
+            if not (u.startswith("http://") or u.startswith("https://")):
+                raise ValueError("each image URL must start with http:// or https://")
+            if len(u) > 2048:
+                raise ValueError("image URL exceeds maximum length")
+            cleaned.append(u)
+        return cleaned
 
 
 class ProductSemanticResult(BaseModel):
